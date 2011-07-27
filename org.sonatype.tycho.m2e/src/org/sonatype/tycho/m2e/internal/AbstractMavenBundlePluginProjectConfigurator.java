@@ -15,9 +15,12 @@ import org.apache.maven.execution.MavenSession;
 import org.apache.maven.model.Plugin;
 import org.apache.maven.plugin.MojoExecution;
 import org.apache.maven.plugin.descriptor.MojoDescriptor;
+import org.apache.maven.project.MavenProject;
+import org.codehaus.plexus.util.Scanner;
 import org.eclipse.core.resources.IContainer;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
+import org.eclipse.core.resources.IncrementalProjectBuilder;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IProgressMonitor;
@@ -27,6 +30,7 @@ import org.eclipse.m2e.core.project.IMavenProjectFacade;
 import org.eclipse.m2e.core.project.configurator.AbstractBuildParticipant;
 import org.eclipse.m2e.core.project.configurator.AbstractProjectConfigurator;
 import org.eclipse.m2e.core.project.configurator.MojoExecutionBuildParticipant;
+import org.sonatype.plexus.build.incremental.BuildContext;
 
 public abstract class AbstractMavenBundlePluginProjectConfigurator
     extends AbstractProjectConfigurator
@@ -92,12 +96,30 @@ public abstract class AbstractMavenBundlePluginProjectConfigurator
             execution = _execution;
         }
 
-        return new MojoExecutionBuildParticipant( execution, false )
+        return new MojoExecutionBuildParticipant( execution, true )
         {
             @Override
             public Set<IProject> build( int kind, IProgressMonitor monitor )
                 throws Exception
             {
+                BuildContext buildContext = getBuildContext();
+                MavenProject mavenProject = getMavenProjectFacade().getMavenProject( monitor );
+
+                if ( IncrementalProjectBuilder.FULL_BUILD != kind )
+                {
+                    // TODO
+                    // The check above is necessary to handle the case when a wrapper project does not have any sources
+                    // but the manifest needs to be regenerated because of dependency change. Need a better way.
+
+                    Scanner ds = buildContext.newScanner( new File( mavenProject.getBuild().getOutputDirectory() ) );
+                    ds.scan();
+                    String[] includedFiles = ds.getIncludedFiles();
+                    if ( includedFiles == null || includedFiles.length <= 0 )
+                    {
+                        return null;
+                    }
+                }
+
                 Set<IProject> projects = super.build( kind, monitor );
                 IProject project = getMavenProjectFacade().getProject();
 
