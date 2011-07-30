@@ -124,7 +124,17 @@ public class MavenBundlePluginTest
         IPluginModelBase model = PluginRegistry.findModel( maven.getProject() );
         assertNotNull( model );
 
+        IJavaProject javaProject = JavaCore.create( maven.getProject() );
+        IClasspathEntry[] cp = javaProject.getRawClasspath();
+        assertEquals( 2, cp.length );
+        assertEquals( new Path( IClasspathManager.CONTAINER_ID ), cp[1].getPath() );
+        assertTrue( cp[1].isExported() );
+
         IProject project = createExisting( "pde", "projects/maven-bundle-plugin/embed-dependency/pde" );
+
+        workspace.build( IncrementalProjectBuilder.FULL_BUILD, monitor );
+        workspace.build( IncrementalProjectBuilder.INCREMENTAL_BUILD, monitor );
+        waitForJobsToComplete();
 
         assertNoErrors( maven.getProject() );
         assertNoErrors( project );

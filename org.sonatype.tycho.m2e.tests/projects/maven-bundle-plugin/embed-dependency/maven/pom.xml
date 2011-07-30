@@ -1,66 +1,67 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-	<modelVersion>4.0.0</modelVersion>
-	<groupId>maven-bundle-plugin</groupId>
-	<artifactId>maven</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
-	<packaging>bundle</packaging>
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>maven-bundle-plugin</groupId>
+  <artifactId>maven</artifactId>
+  <version>0.0.1-SNAPSHOT</version>
+  <packaging>bundle</packaging>
 
-	<properties>
-		<maven-bundle-plugin.version>2.4.0-SNAPSHOT</maven-bundle-plugin.version>
-	</properties>
+  <properties>
+    <maven-bundle-plugin.version>2.4.0-SNAPSHOT</maven-bundle-plugin.version>
+  </properties>
 
-	<dependencies>
-		<dependency>
-			<groupId>de.pdark</groupId>
-			<artifactId>decentxml</artifactId>
-			<version>1.3</version>
-		</dependency>
-	</dependencies>
+  <dependencies>
+    <dependency>
+      <groupId>de.pdark</groupId>
+      <artifactId>decentxml</artifactId>
+      <version>1.3</version>
+    </dependency>
+  </dependencies>
 
-	<build>
-		<plugins>
-			<plugin>
-				<groupId>org.apache.felix</groupId>
-				<artifactId>maven-bundle-plugin</artifactId>
-				<configuration>
-					<instructions>
-						<Embed-Dependency>
-							decentxml,
-						</Embed-Dependency>
-						<_exportcontents>
-							de.pdark.decentxml.*;version="1.3"
-						</_exportcontents>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.felix</groupId>
+        <artifactId>maven-bundle-plugin</artifactId>
+        <configuration>
+          <instructions>
+            <Embed-Dependency>
+              decentxml,
+            </Embed-Dependency>
+            <_exportcontents>
+              de.pdark.decentxml.*;version="1.3"
+            </_exportcontents>
 
-						<Import-Package>
-							*
-						</Import-Package>
-					</instructions>
-				</configuration>
-			</plugin>
-		</plugins>
+            <Import-Package>
+              *
+            </Import-Package>
+          </instructions>
+        </configuration>
+      </plugin>
+    </plugins>
 
-		<pluginManagement>
-			<plugins>
-				<plugin>
-					<groupId>org.apache.felix</groupId>
-					<artifactId>maven-bundle-plugin</artifactId>
-					<version>${maven-bundle-plugin.version}</version>
-					<extensions>true</extensions>
-					<configuration>
-						<instructions>
-							<Bundle-SymbolicName>${project.artifactId};singleton:=true</Bundle-SymbolicName>
-							<Embed-Transitive>true</Embed-Transitive>
-							<Bundle-ClassPath>{maven-dependencies}</Bundle-ClassPath>
-							<_failok>true</_failok>
-							<_nouses>true</_nouses>
-							<_nodefaultversion>true</_nodefaultversion>
-						</instructions>
-					</configuration>
-				</plugin>
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <groupId>org.apache.felix</groupId>
+          <artifactId>maven-bundle-plugin</artifactId>
+          <version>${maven-bundle-plugin.version}</version>
+          <extensions>true</extensions>
+          <configuration>
+            <instructions>
+              <Bundle-SymbolicName>${project.artifactId};singleton:=true</Bundle-SymbolicName>
+              <Embed-Transitive>true</Embed-Transitive>
+              <Bundle-ClassPath>{maven-dependencies}</Bundle-ClassPath>
+              <_failok>true</_failok>
+              <_nouses>true</_nouses>
+              <_nodefaultversion>true</_nodefaultversion>
+            </instructions>
+            <manifestLocation>META-INF</manifestLocation>
+          </configuration>
+        </plugin>
 
-			</plugins>
-		</pluginManagement>
-	</build>
+      </plugins>
+    </pluginManagement>
+  </build>
 
 </project>

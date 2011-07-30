@@ -20,6 +20,7 @@ import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
+import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.m2e.core.embedder.ArtifactKey;
 import org.eclipse.m2e.core.lifecyclemapping.model.IPluginExecutionMetadata;
@@ -39,11 +40,11 @@ public class OsgiBundleProjectConfigurator
     extends AbstractMavenBundlePluginProjectConfigurator
     implements IJavaProjectConfigurator
 {
-    private static final String INCLUDED_ARTIFACTS = "Included-Artifacts";
-
     private static final Logger log = LoggerFactory.getLogger( OsgiBundleProjectConfigurator.class );
 
     public static final String ATTR_BUNDLE_CLASSPATH = "Tycho-Bundle-ClassPath";
+
+    private static final String INCLUDED_ARTIFACTS = "Included-Artifacts";
 
     @Override
     public void configure( ProjectConfigurationRequest request, IProgressMonitor monitor )
@@ -54,10 +55,10 @@ public class OsgiBundleProjectConfigurator
             throw new IllegalArgumentException();
         }
 
+        // bundle manifest is generated in #configureRawClasspath, which is invoked earlier during project configuration
+
         IProject project = request.getProject();
         IMavenProjectFacade facade = request.getMavenProjectFacade();
-
-        generateBundleManifest( request, monitor );
 
         PDEProjectHelper.addPDENature( project, getManifestPath( facade, request.getMavenSession(), monitor ), monitor );
     }
@@ -76,7 +77,9 @@ public class OsgiBundleProjectConfigurator
 
         maven.execute( request.getMavenSession(), execution, monitor );
 
-        getBundleManifest( request.getProject(), monitor ).refreshLocal( IResource.DEPTH_INFINITE, monitor );
+        IPath manifestPath = getManifestPath( request.getMavenProjectFacade(), request.getMavenSession(), monitor );
+
+        request.getProject().getFolder( manifestPath ).refreshLocal( IResource.DEPTH_INFINITE, monitor );
     }
 
     @Override
@@ -168,6 +171,9 @@ public class OsgiBundleProjectConfigurator
         // dependencies.
         // This breaks JDT classpath of plain maven dependents of this project, i.e. such dependents will be exposed to
         // more classes compared to CLI build. Not sure what to do about it yet.
+
+        generateBundleManifest( request, monitor );
+
         if ( !getBundleClasspathMap( request.getMavenProjectFacade(), monitor ).isEmpty() )
         {
             for ( IClasspathEntryDescriptor entry : classpath.getEntryDescriptors() )
