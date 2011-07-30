@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2008 Sonatype, Inc.
+ * Copyright (c) 2008-2011 Sonatype, Inc.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -18,12 +18,14 @@ import org.apache.maven.plugin.descriptor.MojoDescriptor;
 import org.apache.maven.project.MavenProject;
 import org.codehaus.plexus.util.Scanner;
 import org.eclipse.core.resources.IContainer;
+import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
-import org.eclipse.core.resources.IncrementalProjectBuilder;
+import org.eclipse.core.resources.IResourceDelta;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.core.runtime.Path;
 import org.eclipse.m2e.core.MavenPlugin;
 import org.eclipse.m2e.core.embedder.IMaven;
 import org.eclipse.m2e.core.project.IMavenProjectFacade;
@@ -73,6 +75,65 @@ public abstract class AbstractMavenBundlePluginProjectConfigurator
 
     static AbstractBuildParticipant getBuildParticipant( MojoExecution execution )
     {
+        execution = amendMojoExecution( execution );
+
+        return new MojoExecutionBuildParticipant( execution, true )
+        {
+            @Override
+            public Set<IProject> build( int kind, IProgressMonitor monitor )
+                throws Exception
+            {
+                BuildContext buildContext = getBuildContext();
+                MavenProject mavenProject = getMavenProjectFacade().getMavenProject( monitor );
+
+                IProject project = getMavenProjectFacade().getProject();
+                IFile manifest = getBundleManifest( project, monitor );
+
+                // to handle dependency changes, regenerate bundle manifest even if no interesting changes
+                IResourceDelta delta = getDelta( project );
+                if ( manifest.isAccessible() && delta != null
+                    && delta.findMember( manifest.getProjectRelativePath() ) == null )
+                {
+                    Scanner ds = buildContext.newScanner( new File( mavenProject.getBuild().getOutputDirectory() ) );
+                    ds.scan();
+                    String[] includedFiles = ds.getIncludedFiles();
+                    if ( includedFiles == null || includedFiles.length <= 0 )
+                    {
+                        return null;
+                    }
+                }
+
+                Set<IProject> projects = super.build( kind, monitor );
+                manifest.refreshLocal( IResource.DEPTH_INFINITE, monitor ); // refresh parent?
+
+                return projects;
+            }
+
+        };
+    }
+
+    /**
+     * Returns bundle manifest as known to PDE project metadata. Returned file may not exist in workspace or on
+     * filesystem. Never returns null.
+     */
+    protected static IFile getBundleManifest( IProject project, IProgressMonitor monitor )
+        throws CoreException
+    {
+        IContainer metainf = PDEProjectHelper.getManifestLocation( project );
+        if ( metainf == null || metainf instanceof IProject )
+        {
+            metainf = project.getFolder( "META-INF" );
+        }
+        else
+        {
+            metainf = metainf.getFolder( new Path( "META-INF" ) );
+        }
+
+        return metainf.getFile( new Path( "MANIFEST.MF" ) );
+    }
+
+    protected static MojoExecution amendMojoExecution( MojoExecution execution )
+    {
         if ( !isMavenBundlePluginMojo( execution ) )
         {
             throw new IllegalArgumentException();
@@ -88,51 +149,14 @@ public abstract class AbstractMavenBundlePluginProjectConfigurator
             descriptor.setGoal( "manifest" );
             descriptor.setImplementation( "org.apache.felix.bundleplugin.ManifestPlugin" );
             MojoExecution _execution =
-                new MojoExecution( execution.getPlugin(), "manifest", "tycho-m2e:" + execution.getExecutionId()
+                new MojoExecution( execution.getPlugin(), "manifest", "m2e-tycho:" + execution.getExecutionId()
                     + ":manifest" );
             _execution.setConfiguration( execution.getConfiguration() );
             _execution.setMojoDescriptor( descriptor );
             _execution.setLifecyclePhase( execution.getLifecyclePhase() );
             execution = _execution;
         }
-
-        return new MojoExecutionBuildParticipant( execution, true )
-        {
-            @Override
-            public Set<IProject> build( int kind, IProgressMonitor monitor )
-                throws Exception
-            {
-                BuildContext buildContext = getBuildContext();
-                MavenProject mavenProject = getMavenProjectFacade().getMavenProject( monitor );
-
-                if ( IncrementalProjectBuilder.FULL_BUILD != kind )
-                {
-                    // TODO
-                    // The check above is necessary to handle the case when a wrapper project does not have any sources
-                    // but the manifest needs to be regenerated because of dependency change. Need a better way.
-
-                    Scanner ds = buildContext.newScanner( new File( mavenProject.getBuild().getOutputDirectory() ) );
-                    ds.scan();
-                    String[] includedFiles = ds.getIncludedFiles();
-                    if ( includedFiles == null || includedFiles.length <= 0 )
-                    {
-                        return null;
-                    }
-                }
-
-                Set<IProject> projects = super.build( kind, monitor );
-                IProject project = getMavenProjectFacade().getProject();
-
-                IContainer metainf = PDEProjectHelper.getManifestLocation( project );
-                if ( metainf == null || metainf instanceof IProject )
-                {
-                    metainf = project.getFolder( "META-INF" );
-                }
-                metainf.refreshLocal( IResource.DEPTH_INFINITE, monitor );
-
-                return projects;
-            }
-        };
+        return execution;
     }
 
     /**

@@ -24,6 +24,8 @@ import org.eclipse.m2e.core.project.IMavenProjectFacade;
 import org.eclipse.m2e.jdt.IClasspathManager;
 import org.eclipse.m2e.tests.common.AbstractLifecycleMappingTest;
 import org.eclipse.m2e.tests.common.WorkspaceHelpers;
+import org.eclipse.pde.core.plugin.IPluginModelBase;
+import org.eclipse.pde.core.plugin.PluginRegistry;
 import org.eclipse.pde.internal.core.natures.PDE;
 
 @SuppressWarnings( "restriction" )
@@ -103,9 +105,28 @@ public class MavenBundlePluginTest
         IMavenProjectFacade facade = importMavenProject( "projects/maven-bundle-plugin/manifestlocation", "pom.xml" );
         assertPDEPluginProject( facade, "target/classes/META-INF/MANIFEST.MF" );
 
-        // make sure no META-INF/MANIFEST.MF 
+        // make sure no META-INF/MANIFEST.MF
         IFile manifest = facade.getProject().getFile( "META-INF/MANIFEST.MF" );
         manifest.getParent().refreshLocal( IResource.DEPTH_INFINITE, monitor );
         assertFalse( manifest.exists() );
+    }
+
+    /**
+     * Test is disabled until https://issues.apache.org/jira/browse/FELIX-3061 becomes available from a public
+     * repository
+     */
+    public void _testEmbedDependency()
+        throws Exception
+    {
+        IMavenProjectFacade maven =
+            importMavenProject( "projects/maven-bundle-plugin/embed-dependency/maven", "pom.xml" );
+
+        IPluginModelBase model = PluginRegistry.findModel( maven.getProject() );
+        assertNotNull( model );
+
+        IProject project = createExisting( "pde", "projects/maven-bundle-plugin/embed-dependency/pde" );
+
+        assertNoErrors( maven.getProject() );
+        assertNoErrors( project );
     }
 }

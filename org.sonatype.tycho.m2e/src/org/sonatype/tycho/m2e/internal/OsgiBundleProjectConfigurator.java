@@ -8,18 +8,42 @@
 
 package org.sonatype.tycho.m2e.internal;
 
+import java.io.InputStream;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.jar.Attributes;
+import java.util.jar.Manifest;
+
 import org.apache.maven.plugin.MojoExecution;
+import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
+import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.m2e.core.embedder.ArtifactKey;
 import org.eclipse.m2e.core.lifecyclemapping.model.IPluginExecutionMetadata;
 import org.eclipse.m2e.core.project.IMavenProjectFacade;
+import org.eclipse.m2e.core.project.MavenProjectChangedEvent;
 import org.eclipse.m2e.core.project.configurator.AbstractBuildParticipant;
 import org.eclipse.m2e.core.project.configurator.ProjectConfigurationRequest;
+import org.eclipse.m2e.jdt.IClasspathDescriptor;
+import org.eclipse.m2e.jdt.IClasspathEntryDescriptor;
+import org.eclipse.m2e.jdt.IClasspathManager;
+import org.eclipse.m2e.jdt.IJavaProjectConfigurator;
+import org.eclipse.osgi.util.ManifestElement;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class OsgiBundleProjectConfigurator
     extends AbstractMavenBundlePluginProjectConfigurator
+    implements IJavaProjectConfigurator
 {
+    private static final String INCLUDED_ARTIFACTS = "Included-Artifacts";
+
+    private static final Logger log = LoggerFactory.getLogger( OsgiBundleProjectConfigurator.class );
+
+    public static final String ATTR_BUNDLE_CLASSPATH = "Tycho-Bundle-ClassPath";
 
     @Override
     public void configure( ProjectConfigurationRequest request, IProgressMonitor monitor )
@@ -29,10 +53,30 @@ public class OsgiBundleProjectConfigurator
         {
             throw new IllegalArgumentException();
         }
+
         IProject project = request.getProject();
         IMavenProjectFacade facade = request.getMavenProjectFacade();
 
+        generateBundleManifest( request, monitor );
+
         PDEProjectHelper.addPDENature( project, getManifestPath( facade, request.getMavenSession(), monitor ), monitor );
+    }
+
+    private void generateBundleManifest( ProjectConfigurationRequest request, IProgressMonitor monitor )
+        throws CoreException
+    {
+        List<MojoExecution> executions = getMojoExecutions( request, monitor );
+
+        if ( executions.size() != 1 )
+        {
+            throw new IllegalArgumentException();
+        }
+
+        MojoExecution execution = amendMojoExecution( executions.get( 0 ) );
+
+        maven.execute( request.getMavenSession(), execution, monitor );
+
+        getBundleManifest( request.getProject(), monitor ).refreshLocal( IResource.DEPTH_INFINITE, monitor );
     }
 
     @Override
@@ -42,4 +86,112 @@ public class OsgiBundleProjectConfigurator
         return getBuildParticipant( execution );
     }
 
+    @Override
+    public void configureClasspath( IMavenProjectFacade facade, IClasspathDescriptor classpath, IProgressMonitor monitor )
+        throws CoreException
+    {
+        Map<ArtifactKey, String> classpathMap = getBundleClasspathMap( facade, monitor );
+
+        for ( IClasspathEntryDescriptor entry : classpath.getEntryDescriptors() )
+        {
+            String path = classpathMap.get( entry.getArtifactKey() );
+            if ( path != null && !"".equals( path.trim() ) )
+            {
+                entry.setClasspathAttribute( ATTR_BUNDLE_CLASSPATH, path );
+            }
+        }
+    }
+
+    private Map<ArtifactKey, String> getBundleClasspathMap( IMavenProjectFacade facade, IProgressMonitor monitor )
+        throws CoreException
+    {
+        Map<ArtifactKey, String> result = new LinkedHashMap<ArtifactKey, String>();
+
+        IFile mfFile = getBundleManifest( facade.getProject(), monitor );
+
+        if ( mfFile != null && mfFile.isAccessible() )
+        {
+            try
+            {
+                InputStream is = mfFile.getContents();
+
+                try
+                {
+                    Manifest mf = new Manifest( is );
+
+                    Attributes attrs = mf.getMainAttributes();
+                    String value = attrs.getValue( INCLUDED_ARTIFACTS );
+
+                    if ( value != null )
+                    {
+                        for ( ManifestElement me : ManifestElement.parseHeader( INCLUDED_ARTIFACTS, value ) )
+                        {
+                            String path = me.getValue();
+                            String g = me.getAttribute( "g" );
+                            String a = me.getAttribute( "a" );
+                            String v = me.getAttribute( "v" );
+                            String c = me.getAttribute( "c" );
+
+                            if ( g != null && a != null && v != null && path != null )
+                            {
+                                result.put( new ArtifactKey( g, a, v, c ), path );
+                            }
+                            else
+                            {
+                                log.debug( "Malformd Include-Artifacts element paht={};g={};a={};v={};c={}",
+                                           new Object[] { path, g, a, v, c } );
+                            }
+                        }
+                    }
+
+                }
+                finally
+                {
+                    is.close();
+                }
+            }
+            catch ( Exception e )
+            {
+                log.warn( "Count not read generated bundle manifest of project {}", facade.getProject().getName(), e );
+            }
+        }
+
+        return result;
+    }
+
+    @Override
+    public void configureRawClasspath( ProjectConfigurationRequest request, IClasspathDescriptor classpath,
+                                       IProgressMonitor monitor )
+        throws CoreException
+    {
+        // export maven dependencies classpath container, so dependent project can compile against embedded transitive
+        // dependencies.
+        // This breaks JDT classpath of plain maven dependents of this project, i.e. such dependents will be exposed to
+        // more classes compared to CLI build. Not sure what to do about it yet.
+        if ( !getBundleClasspathMap( request.getMavenProjectFacade(), monitor ).isEmpty() )
+        {
+            for ( IClasspathEntryDescriptor entry : classpath.getEntryDescriptors() )
+            {
+                if ( IClasspathManager.CONTAINER_ID.equals( entry.getPath().segment( 0 ) ) )
+                {
+                    entry.setExported( true );
+                }
+            }
+        }
+    }
+
+    @Override
+    public void mavenProjectChanged( MavenProjectChangedEvent event, IProgressMonitor monitor )
+        throws CoreException
+    {
+        if ( MavenProjectChangedEvent.FLAG_DEPENDENCIES == event.getKind() )
+        {
+            // touch bundle manifests to force regeneration
+            IFile manifest = getBundleManifest( event.getMavenProject().getProject(), monitor );
+            if ( manifest != null && manifest.isAccessible() )
+            {
+                manifest.touch( monitor );
+            }
+        }
+    }
 }

@@ -190,6 +190,12 @@ public class PDEProjectHelper
         description.setBuildSpec( newBuilders.toArray( new ICommand[newBuilders.size()] ) );
         project.setDescription( description, monitor );
 
+        setManifestLocaton( project, manifestPath, monitor );
+    }
+
+    protected static void setManifestLocaton( IProject project, IPath manifestPath, IProgressMonitor monitor )
+        throws CoreException
+    {
         IBundleProjectService projectService = Activator.getDefault().getProjectService();
         if ( manifestPath != null && manifestPath.segmentCount() > 1 )
         {
