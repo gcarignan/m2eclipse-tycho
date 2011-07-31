@@ -86,7 +86,8 @@ public abstract class AbstractMavenBundlePluginProjectConfigurator
                 MavenProject mavenProject = facade.getMavenProject( monitor );
 
                 IProject project = facade.getProject();
-                IFile manifest = project.getFile( getManifestPath( facade, getSession(), monitor ) );
+                IFile manifest =
+                    project.getFolder( getMetainfPath( facade, getSession(), monitor ) ).getFile( "MANIFEST.MF" );
 
                 // to handle dependency changes, regenerate bundle manifest even if no interesting changes
                 IResourceDelta delta = getDelta( project );
@@ -139,9 +140,9 @@ public abstract class AbstractMavenBundlePluginProjectConfigurator
     }
 
     /**
-     * Returns project relative path of generated OSGi bundle manifest
+     * Returns project relative path of the <b>folder</b> where the generated manifest is or will be written
      */
-    static IPath getManifestPath( IMavenProjectFacade facade, MavenSession session, IProgressMonitor monitor )
+    static IPath getMetainfPath( IMavenProjectFacade facade, MavenSession session, IProgressMonitor monitor )
         throws CoreException
     {
         IMaven maven = MavenPlugin.getMaven();

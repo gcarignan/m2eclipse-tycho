@@ -60,7 +60,7 @@ public class OsgiBundleProjectConfigurator
         IProject project = request.getProject();
         IMavenProjectFacade facade = request.getMavenProjectFacade();
 
-        PDEProjectHelper.addPDENature( project, getManifestPath( facade, request.getMavenSession(), monitor ), monitor );
+        PDEProjectHelper.addPDENature( project, getMetainfPath( facade, request.getMavenSession(), monitor ), monitor );
     }
 
     private void generateBundleManifest( ProjectConfigurationRequest request, IProgressMonitor monitor )
@@ -77,7 +77,7 @@ public class OsgiBundleProjectConfigurator
 
         maven.execute( request.getMavenSession(), execution, monitor );
 
-        IPath manifestPath = getManifestPath( request.getMavenProjectFacade(), request.getMavenSession(), monitor );
+        IPath manifestPath = getMetainfPath( request.getMavenProjectFacade(), request.getMavenSession(), monitor );
 
         request.getProject().getFolder( manifestPath ).refreshLocal( IResource.DEPTH_INFINITE, monitor );
     }
