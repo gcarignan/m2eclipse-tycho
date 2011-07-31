@@ -93,7 +93,7 @@ public class OsgiBundleProjectConfigurator
     public void configureClasspath( IMavenProjectFacade facade, IClasspathDescriptor classpath, IProgressMonitor monitor )
         throws CoreException
     {
-        Map<ArtifactKey, String> classpathMap = getBundleClasspathMap( facade, monitor );
+        Map<ArtifactKey, String> classpathMap = getBundleClasspathMap( facade );
 
         for ( IClasspathEntryDescriptor entry : classpath.getEntryDescriptors() )
         {
@@ -105,12 +105,12 @@ public class OsgiBundleProjectConfigurator
         }
     }
 
-    private Map<ArtifactKey, String> getBundleClasspathMap( IMavenProjectFacade facade, IProgressMonitor monitor )
+    private Map<ArtifactKey, String> getBundleClasspathMap( IMavenProjectFacade facade )
         throws CoreException
     {
         Map<ArtifactKey, String> result = new LinkedHashMap<ArtifactKey, String>();
 
-        IFile mfFile = getBundleManifest( facade.getProject(), monitor );
+        IFile mfFile = PDEProjectHelper.getBundleManifest( facade.getProject() );
 
         if ( mfFile != null && mfFile.isAccessible() )
         {
@@ -174,7 +174,7 @@ public class OsgiBundleProjectConfigurator
 
         generateBundleManifest( request, monitor );
 
-        if ( !getBundleClasspathMap( request.getMavenProjectFacade(), monitor ).isEmpty() )
+        if ( !getBundleClasspathMap( request.getMavenProjectFacade() ).isEmpty() )
         {
             for ( IClasspathEntryDescriptor entry : classpath.getEntryDescriptors() )
             {
@@ -193,7 +193,7 @@ public class OsgiBundleProjectConfigurator
         if ( MavenProjectChangedEvent.FLAG_DEPENDENCIES == event.getKind() )
         {
             // touch bundle manifests to force regeneration
-            IFile manifest = getBundleManifest( event.getMavenProject().getProject(), monitor );
+            IFile manifest = PDEProjectHelper.getBundleManifest( event.getMavenProject().getProject() );
             if ( manifest != null && manifest.isAccessible() )
             {
                 manifest.touch( monitor );

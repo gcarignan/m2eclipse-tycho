@@ -17,7 +17,6 @@ import org.apache.maven.plugin.MojoExecution;
 import org.apache.maven.plugin.descriptor.MojoDescriptor;
 import org.apache.maven.project.MavenProject;
 import org.codehaus.plexus.util.Scanner;
-import org.eclipse.core.resources.IContainer;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
@@ -25,7 +24,6 @@ import org.eclipse.core.resources.IResourceDelta;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IProgressMonitor;
-import org.eclipse.core.runtime.Path;
 import org.eclipse.m2e.core.MavenPlugin;
 import org.eclipse.m2e.core.embedder.IMaven;
 import org.eclipse.m2e.core.project.IMavenProjectFacade;
@@ -84,10 +82,11 @@ public abstract class AbstractMavenBundlePluginProjectConfigurator
                 throws Exception
             {
                 BuildContext buildContext = getBuildContext();
-                MavenProject mavenProject = getMavenProjectFacade().getMavenProject( monitor );
+                IMavenProjectFacade facade = getMavenProjectFacade();
+                MavenProject mavenProject = facade.getMavenProject( monitor );
 
-                IProject project = getMavenProjectFacade().getProject();
-                IFile manifest = getBundleManifest( project, monitor );
+                IProject project = facade.getProject();
+                IFile manifest = project.getFile( getManifestPath( facade, getSession(), monitor ) );
 
                 // to handle dependency changes, regenerate bundle manifest even if no interesting changes
                 IResourceDelta delta = getDelta( project );
@@ -110,26 +109,6 @@ public abstract class AbstractMavenBundlePluginProjectConfigurator
             }
 
         };
-    }
-
-    /**
-     * Returns bundle manifest as known to PDE project metadata. Returned file may not exist in workspace or on
-     * filesystem. Never returns null.
-     */
-    protected static IFile getBundleManifest( IProject project, IProgressMonitor monitor )
-        throws CoreException
-    {
-        IContainer metainf = PDEProjectHelper.getManifestLocation( project );
-        if ( metainf == null || metainf instanceof IProject )
-        {
-            metainf = project.getFolder( "META-INF" );
-        }
-        else
-        {
-            metainf = metainf.getFolder( new Path( "META-INF" ) );
-        }
-
-        return metainf.getFile( new Path( "MANIFEST.MF" ) );
     }
 
     protected static MojoExecution amendMojoExecution( MojoExecution execution )
