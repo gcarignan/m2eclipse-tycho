@@ -28,7 +28,7 @@
   <properties>
     <m2e-extras.version>0.13.0/N/0.13.0.201106171509</m2e-extras.version>
 
-    <tycho-version>0.11.1</tycho-version>
+    <tycho-version>0.13.0-SNAPSHOT</tycho-version>
 
     <m2e.site-compressed>http://repository.sonatype.org/service/local/repositories/forge-sites/content-compressed/</m2e.site-compressed>
   </properties>
@@ -36,6 +36,7 @@
   <modules>
     <module>org.sonatype.tycho.m2e</module>
     <module>org.sonatype.tycho.m2e.feature</module>
+    <module>org.sonatype.tycho.m2e.pdepatch</module>
     <module>org.sonatype.tycho.update</module>
     
     <module>org.sonatype.tycho.m2e.tests</module>
@@ -76,13 +77,13 @@
   <build>
     <plugins>
       <plugin>
-        <groupId>org.sonatype.tycho</groupId>
+        <groupId>org.eclipse.tycho</groupId>
         <artifactId>tycho-maven-plugin</artifactId>
         <version>${tycho-version}</version>
         <extensions>true</extensions>
       </plugin>
       <plugin>
-        <groupId>org.sonatype.tycho</groupId>
+        <groupId>org.eclipse.tycho</groupId>
         <artifactId>target-platform-configuration</artifactId>
         <version>${tycho-version}</version>
         <configuration>
@@ -134,7 +135,7 @@
           <plugins>
             <plugin>
               <groupId>org.sonatype.tycho</groupId>
-              <artifactId>maven-osgi-test-plugin</artifactId>
+              <artifactId>tycho-surefire-plugin</artifactId>
               <version>${tycho-version}</version>
               <configuration>
                 <dependencies>
