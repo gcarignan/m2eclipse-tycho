@@ -24,6 +24,7 @@ import org.eclipse.core.resources.IResourceDelta;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.core.runtime.QualifiedName;
 import org.eclipse.m2e.core.MavenPlugin;
 import org.eclipse.m2e.core.embedder.IMaven;
 import org.eclipse.m2e.core.project.IMavenProjectFacade;
@@ -38,6 +39,9 @@ public abstract class AbstractMavenBundlePluginProjectConfigurator
     public static final String MOJO_GROUP_ID = "org.apache.felix";
 
     public static final String MOJO_ARTIFACT_ID = "maven-bundle-plugin";
+
+    protected static final QualifiedName PROP_FORCE_GENERATE = new QualifiedName( Activator.PLUGIN_ID,
+                                                                                       "forceGenerate" );
 
     static boolean isOsgiBundleProject( IMavenProjectFacade facade, IProgressMonitor monitor )
         throws CoreException
@@ -89,9 +93,15 @@ public abstract class AbstractMavenBundlePluginProjectConfigurator
                 IFile manifest =
                     project.getFolder( getMetainfPath( facade, getSession(), monitor ) ).getFile( "MANIFEST.MF" );
 
+                // the property is set by OsgiBundleProjectConfigurator.mavenProjectChanged is a workaround for
+                // m2e design limitation, which does not allow project configurators trigger resource deltas
+                // visible to build participants. See comment in OsgiBundleProjectConfigurator.mavenProjectChanged 
+                boolean force = Boolean.parseBoolean( (String) project.getSessionProperty( PROP_FORCE_GENERATE ) );
+                project.setSessionProperty( PROP_FORCE_GENERATE, null );
+
                 // to handle dependency changes, regenerate bundle manifest even if no interesting changes
                 IResourceDelta delta = getDelta( project );
-                if ( manifest.isAccessible() && delta != null
+                if ( !force && manifest.isAccessible() && delta != null
                     && delta.findMember( manifest.getProjectRelativePath() ) == null )
                 {
                     Scanner ds = buildContext.newScanner( new File( mavenProject.getBuild().getOutputDirectory() ) );

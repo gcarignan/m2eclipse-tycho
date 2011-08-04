@@ -190,14 +190,25 @@ public class OsgiBundleProjectConfigurator
     public void mavenProjectChanged( MavenProjectChangedEvent event, IProgressMonitor monitor )
         throws CoreException
     {
-        if ( MavenProjectChangedEvent.FLAG_DEPENDENCIES == event.getKind() )
+        if ( MavenProjectChangedEvent.KIND_CHANGED == event.getKind()
+            && MavenProjectChangedEvent.FLAG_DEPENDENCIES == event.getFlags() )
         {
             // touch bundle manifests to force regeneration
-            IFile manifest = PDEProjectHelper.getBundleManifest( event.getMavenProject().getProject() );
+
+            IProject project = event.getMavenProject().getProject();
+
+            // unfortunately, this does not work. when workspace autobuild is on, project registry is updated
+            // synchronously from MavenBuilder. this means that any resource changes by this code are not
+            // available when the same MavenBuild runs build participants
+            IFile manifest = PDEProjectHelper.getBundleManifest( project );
             if ( manifest != null && manifest.isAccessible() )
             {
                 manifest.touch( monitor );
             }
+
+            // this is a less pretty way to force bundle manifest regeneration. 
+            // the property is checked and reset by the build participant
+            project.setSessionProperty( PROP_FORCE_GENERATE, "true" );
         }
     }
 }
