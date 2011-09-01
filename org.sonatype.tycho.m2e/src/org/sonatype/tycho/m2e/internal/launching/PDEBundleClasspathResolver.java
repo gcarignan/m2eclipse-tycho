@@ -32,7 +32,7 @@ import org.eclipse.m2e.core.MavenPlugin;
 import org.eclipse.m2e.core.project.IMavenProjectFacade;
 import org.eclipse.m2e.jdt.IClasspathManager;
 import org.eclipse.m2e.jdt.MavenJdtPlugin;
-import org.eclipse.pde.core.spi.IBundleClasspathResolver;
+import org.eclipse.pde.core.IBundleClasspathResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.sonatype.tycho.m2e.internal.OsgiBundleProjectConfigurator;
@@ -46,7 +46,7 @@ public class PDEBundleClasspathResolver
     private static final int CLASSPATH_SCOPE = IClasspathManager.CLASSPATH_RUNTIME;
 
     @Override
-    public Map<IPath, Collection<IPath>> getClasspathMap( IJavaProject javaProject )
+    public Map<IPath, Collection<IPath>> getAdditionalClasspathEntries( IJavaProject javaProject )
     {
         IProgressMonitor monitor = new NullProgressMonitor();
 
@@ -106,7 +106,7 @@ public class PDEBundleClasspathResolver
     }
 
     @Override
-    public Collection<IRuntimeClasspathEntry> getSourceLookupPath( IJavaProject javaProject )
+    public Collection<IRuntimeClasspathEntry> getAdditionalSourceEntries( IJavaProject javaProject )
     {
         IProgressMonitor monitor = new NullProgressMonitor();
 
