@@ -38,6 +38,7 @@
     <module>org.sonatype.tycho.m2e.feature</module>
     <module>org.sonatype.tycho.update</module>
     <module>org.sonatype.tycho.m2e.tests</module>
+    <module>com.netappsid.m2e.pde.target</module>
   </modules>
 
 
