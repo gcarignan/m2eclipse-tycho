@@ -5,8 +5,9 @@
    <extension
          point="org.eclipse.ui.popupMenus">
       <objectContribution
-            objectClass="org.eclipse.core.resources.IProject"
-            id="com.netappsid.m2e.pde.loadTarget">
+            adaptable="true"
+            id="com.netappsid.m2e.pde.loadTarget"
+            objectClass="org.eclipse.core.resources.IProject">
          <action
                class="com.netappsid.m2e.pde.target.LoadMavenTargetAction"
                enablesFor="1"
@@ -14,6 +15,12 @@
                label="Load PDE Target"
                menubarPath="org.eclipse.m2e.core.mavenMenu/update">
          </action>
+         <visibility>
+            <objectState
+                  name="nature"
+                  value="org.eclipse.m2e.core.maven2Nature">
+            </objectState>
+         </visibility>
       </objectContribution>
    </extension>
 
