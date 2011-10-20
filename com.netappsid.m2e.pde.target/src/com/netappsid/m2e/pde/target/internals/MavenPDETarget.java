@@ -1,12 +1,16 @@
 package com.netappsid.m2e.pde.target.internals;
 
-import java.util.ArrayList;
+import java.io.File;
+import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
 import org.apache.maven.artifact.Artifact;
+import org.codehaus.plexus.util.FileUtils;
 import org.eclipse.core.resources.IFile;
+import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.resources.IProject;
+import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.jface.viewers.IStructuredSelection;
 import org.eclipse.m2e.core.MavenPlugin;
@@ -51,13 +55,7 @@ public class MavenPDETarget
 		{
 			try
 			{
-				ITargetDefinition newTarget = targetPlatformService.newTarget();
-				IMaven maven = MavenPlugin.getMaven();
-				IMavenProjectFacade[] projects = MavenPluginActivator.getDefault().getMavenProjectManagerImpl().getProjects();
-				MavenBundleContainer mavenBundleContainer = new MavenBundleContainer(maven, projects);
-				newTarget.setBundleContainers(new IBundleContainer[] { mavenBundleContainer });
-				newTarget.setName("Maven Target");
-				LoadTargetDefinitionJob.load(newTarget);
+				ITargetDefinition newTarget = loadMavenTargetDefinition();
 
 				IFile file = elements.get(0).getFile("PDE_TARGET.target");
 
@@ -66,18 +64,39 @@ public class MavenPDETarget
 					file.delete(true, false, null);
 				}
 
+				IFolder folder = elements.get(0).getFolder("PDE_TARGET_Plugins");
+				if (folder.exists())
+				{
+					folder.delete(true, null);
+				}
+
+				folder.create(true, true, null);
+				File targetFolderPlugin = folder.getLocation().toFile();
+
 				ITargetHandle targetHandle = targetPlatformService.getTarget(file);
 				ITargetDefinition directoryTargetDefinition = targetHandle.getTargetDefinition();
 
-				List<IBundleContainer> bundleContainers = new ArrayList<IBundleContainer>();
+				MavenBundleContainer mavenBundleContainer = (MavenBundleContainer) newTarget.getBundleContainers()[0];
+
 				for (Artifact artifact : mavenBundleContainer.getArtifacts(null))
 				{
-					System.out.println(artifact.getFile().getParent());
-					bundleContainers.add(new DirectoryBundleContainer(artifact.getFile().getParent()));
+					try
+					{
+						File bundleFile = artifact.getFile().getAbsoluteFile();
+						if (bundleFile.isFile())
+						{
+							FileUtils.copyFileToDirectory(bundleFile, targetFolderPlugin);
+						}
+					}
+					catch (IOException e)
+					{
+						e.printStackTrace();
+					}
 				}
 
-				directoryTargetDefinition.setBundleContainers(bundleContainers.toArray(new IBundleContainer[] {}));
+				directoryTargetDefinition.setBundleContainers(new IBundleContainer[] { new DirectoryBundleContainer(targetFolderPlugin.getAbsolutePath()) });
 
+				elements.get(0).refreshLocal(IResource.DEPTH_INFINITE, null);
 				targetPlatformService.saveTargetDefinition(directoryTargetDefinition);
 			}
 			catch (CoreException e)
