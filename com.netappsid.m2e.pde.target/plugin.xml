@@ -22,6 +22,24 @@
             </objectState>
          </visibility>
       </objectContribution>
+      <objectContribution
+            adaptable="true"
+            id="com.netappsid.m2e.pde.loadTarget"
+            objectClass="org.eclipse.core.resources.IProject">
+         <action
+               class="com.netappsid.m2e.pde.target.SaveMavenTargetAction"
+               enablesFor="1"
+               id="com.netappsid.m2e.pde.saveTarget"
+               label="Save PDE Target File"
+               menubarPath="org.eclipse.m2e.core.mavenMenu/update">
+         </action>
+         <visibility>
+            <objectState
+                  name="nature"
+                  value="org.eclipse.m2e.core.maven2Nature">
+            </objectState>
+         </visibility>
+      </objectContribution>
    </extension>
 
 </plugin>
