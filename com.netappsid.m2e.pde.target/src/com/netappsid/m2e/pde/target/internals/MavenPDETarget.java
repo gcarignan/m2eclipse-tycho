@@ -2,6 +2,7 @@ package com.netappsid.m2e.pde.target.internals;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -55,27 +56,30 @@ public class MavenPDETarget
 		{
 			try
 			{
+				IProject project = elements.get(0);
+
 				ITargetDefinition newTarget = loadMavenTargetDefinition();
 
-				IFile file = elements.get(0).getFile("PDE_TARGET.target");
+				IFile targetFile = project.getFile("PDE_TARGET.target");
 
-				if (file.exists())
+				// Ensure plugins folder is reset
+				IFolder pluginsFolder = project.getFolder("PDE_TARGET_Plugins");
+				if (pluginsFolder.exists())
 				{
-					file.delete(true, false, null);
+					pluginsFolder.delete(true, null);
+				}
+				pluginsFolder.create(true, true, null);
+
+				// Ensure otherPlugins folder exists
+				IFolder otherPluginsFolder = project.getFolder("PDE_TARGET_OtherPlugins");
+				if (!otherPluginsFolder.exists())
+				{
+					otherPluginsFolder.create(true, true, null);
 				}
 
-				IFolder folder = elements.get(0).getFolder("PDE_TARGET_Plugins");
-				if (folder.exists())
-				{
-					folder.delete(true, null);
-				}
+				File pluginsFolderFile = pluginsFolder.getLocation().toFile();
 
-				folder.create(true, true, null);
-				File targetFolderPlugin = folder.getLocation().toFile();
-
-				ITargetHandle targetHandle = targetPlatformService.getTarget(file);
-				ITargetDefinition directoryTargetDefinition = targetHandle.getTargetDefinition();
-
+				// Copy all maven dependencies in pluginsFolder
 				MavenBundleContainer mavenBundleContainer = (MavenBundleContainer) newTarget.getBundleContainers()[0];
 
 				for (Artifact artifact : mavenBundleContainer.getArtifacts(null))
@@ -85,7 +89,7 @@ public class MavenPDETarget
 						File bundleFile = artifact.getFile().getAbsoluteFile();
 						if (bundleFile.isFile())
 						{
-							FileUtils.copyFileToDirectory(bundleFile, targetFolderPlugin);
+							FileUtils.copyFileToDirectory(bundleFile, pluginsFolderFile);
 						}
 					}
 					catch (IOException e)
@@ -94,16 +98,75 @@ public class MavenPDETarget
 					}
 				}
 
-				directoryTargetDefinition.setBundleContainers(new IBundleContainer[] { new DirectoryBundleContainer(targetFolderPlugin.getAbsolutePath()) });
+				// Update targetFile with the DirectoryBundelContainer if not already present
+				ITargetHandle targetHandle = targetPlatformService.getTarget(targetFile);
+				ITargetDefinition directoryTargetDefinition = targetHandle.getTargetDefinition();
 
-				elements.get(0).refreshLocal(IResource.DEPTH_INFINITE, null);
+				IBundleContainer mavenDirectoryBundleContainer = null;
+
+				String pluginsFolderPath = pluginsFolderFile.getAbsolutePath();
+				String otherPluginsPath = otherPluginsFolder.getLocation().toFile().getAbsolutePath();
+				
+				if (targetFile.exists())
+				{
+					// Find already existing DirectoryBundleContainer for maven repository path
+					addBundleContainerToTargetDefinitionIfNotPresent(directoryTargetDefinition, pluginsFolderPath);
+					addBundleContainerToTargetDefinitionIfNotPresent(directoryTargetDefinition, otherPluginsPath);
+				}
+				else
+				{
+					directoryTargetDefinition.setBundleContainers(new IBundleContainer[] { new DirectoryBundleContainer(pluginsFolderPath),
+							new DirectoryBundleContainer(otherPluginsPath) });
+				}
+				
+
+				// Refresh project folder tree
+				project.refreshLocal(IResource.DEPTH_INFINITE, null);
+
+				// Save target definition
 				targetPlatformService.saveTargetDefinition(directoryTargetDefinition);
 			}
 			catch (CoreException e)
 			{
 				e.printStackTrace();
 			}
-
 		}
+	}
+
+	private void addBundleContainerToTargetDefinitionIfNotPresent(ITargetDefinition directoryTargetDefinition, String folderPath) throws CoreException
+	{
+		IBundleContainer bundleContainer = findBundleContainerForPath(directoryTargetDefinition, folderPath);
+
+		// Add BundleContainer to target definition if not already present
+		if (bundleContainer == null)
+		{
+			IBundleContainer[] bundleContainers = directoryTargetDefinition.getBundleContainers();
+
+			IBundleContainer[] newBundleContainers = Arrays.copyOf(bundleContainers, bundleContainers.length + 1);
+
+			newBundleContainers[newBundleContainers.length - 1] = new DirectoryBundleContainer(folderPath);
+			directoryTargetDefinition.setBundleContainers(newBundleContainers);
+		}
+	}
+
+	private IBundleContainer findBundleContainerForPath(ITargetDefinition directoryTargetDefinition, String pluginsFolderPath) throws CoreException
+	{
+		IBundleContainer returnedBundleContainer = null;
+
+		for (IBundleContainer bundleContainer : directoryTargetDefinition.getBundleContainers())
+		{
+			if (bundleContainer instanceof DirectoryBundleContainer)
+			{
+				DirectoryBundleContainer directoryBundleContainer = (DirectoryBundleContainer) bundleContainer;
+
+				if (directoryBundleContainer.getLocation(false).equals(pluginsFolderPath))
+				{
+					returnedBundleContainer = bundleContainer;
+					break;
+				}
+			}
+		}
+
+		return returnedBundleContainer;
 	}
 }

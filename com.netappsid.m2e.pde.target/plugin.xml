@@ -30,8 +30,9 @@
                class="com.netappsid.m2e.pde.target.SaveMavenTargetAction"
                enablesFor="1"
                id="com.netappsid.m2e.pde.saveTarget"
-               label="Save PDE Target File"
-               menubarPath="org.eclipse.m2e.core.mavenMenu/update">
+               label="Save/Update PDE Target File"
+               menubarPath="org.eclipse.m2e.core.mavenMenu/update"
+               tooltip="Save/Updates an existing PDE target file and 2 folders: MAVEN dependencies and other plugins that will not be deleted once the update is performed again">
          </action>
          <visibility>
             <objectState
