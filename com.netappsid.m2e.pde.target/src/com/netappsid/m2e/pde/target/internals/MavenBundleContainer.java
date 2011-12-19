@@ -60,9 +60,9 @@ public class MavenBundleContainer extends AbstractBundleContainer
 	{
 		Set<Artifact> artifacts = new HashSet<Artifact>();
 
-		for (int i = 0; i < mavenProjects.length; i++)
+		for (int i = 0; i < getMavenProjects().length; i++)
 		{
-			IMavenProjectFacade mavenProjectFacade = mavenProjects[i];
+			IMavenProjectFacade mavenProjectFacade = getMavenProjects()[i];
 			artifacts.addAll(mavenProjectFacade.getMavenProject(monitor).getArtifacts());
 		}
 		return artifacts;
@@ -90,6 +90,11 @@ public class MavenBundleContainer extends AbstractBundleContainer
 	public boolean isContentEqual(AbstractBundleContainer container)
 	{
 		return false;
+	}
+
+	public IMavenProjectFacade[] getMavenProjects()
+	{
+		return mavenProjects;
 	}
 
 }

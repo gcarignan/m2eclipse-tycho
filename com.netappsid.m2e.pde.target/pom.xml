@@ -19,4 +19,13 @@
   <artifactId>com.netappsid.m2e.pde.target</artifactId>
   <packaging>eclipse-plugin</packaging>
 
+  <dependencies>
+  	<dependency>
+  		<groupId>org.apache.commons</groupId>
+  		<artifactId>
+  			com.springsource.org.apache.commons.collections
+  		</artifactId>
+  		<version>3.2.1</version>
+  	</dependency>
+  </dependencies>
 </project>
