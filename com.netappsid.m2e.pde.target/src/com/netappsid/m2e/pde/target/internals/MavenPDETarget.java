@@ -2,13 +2,10 @@ package com.netappsid.m2e.pde.target.internals;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -23,10 +20,6 @@ import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
-import org.eclipse.jface.viewers.IStructuredSelection;
-import org.eclipse.m2e.core.MavenPlugin;
-import org.eclipse.m2e.core.embedder.IMaven;
-import org.eclipse.m2e.core.internal.MavenPluginActivator;
 import org.eclipse.m2e.core.project.IMavenProjectFacade;
 import org.eclipse.pde.internal.core.target.DirectoryBundleContainer;
 import org.eclipse.pde.internal.core.target.provisional.IBundleContainer;
@@ -34,7 +27,6 @@ import org.eclipse.pde.internal.core.target.provisional.ITargetDefinition;
 import org.eclipse.pde.internal.core.target.provisional.ITargetHandle;
 import org.eclipse.pde.internal.core.target.provisional.ITargetPlatformService;
 import org.eclipse.swt.widgets.Shell;
-
 
 public class MavenPDETarget
 {
@@ -46,142 +38,110 @@ public class MavenPDETarget
 		this.targetPlatformService = targetPlatformService;
 	}
 
-	public ITargetDefinition loadMavenTargetDefinition()
+	public ITargetDefinition loadMavenTargetDefinition(MavenBundleContainer mavenBundleContainer)
 	{
 		ITargetDefinition newTarget = targetPlatformService.newTarget();
-		IMaven maven = MavenPlugin.getMaven();
-		IMavenProjectFacade[] projects = MavenPluginActivator.getDefault().getMavenProjectManagerImpl().getProjects();
-		IMavenProjectFacade[] openedProjects = getOpenedProjectsOnly(projects);
-
-		newTarget.setBundleContainers(new IBundleContainer[] { new MavenBundleContainer(maven, openedProjects) });
+		newTarget.setBundleContainers(new IBundleContainer[] { mavenBundleContainer });
 		newTarget.setName("Maven Target");
-
 		return newTarget;
 	}
 
-	private IMavenProjectFacade[] getOpenedProjectsOnly(IMavenProjectFacade[] projects)
+	public ITargetDefinition saveMavenTargetDefinition(Shell shell, IProject targetProject, MavenBundleContainer mavenBundleContainer)
 	{
-		List<IMavenProjectFacade> projectsList = new ArrayList<IMavenProjectFacade>(Arrays.asList(projects));
-
-		CollectionUtils.filter(projectsList, new Predicate()
-			{
-				@Override
-				public boolean evaluate(Object item)
-				{
-					IMavenProjectFacade project = (IMavenProjectFacade) item;
-					return project.getProject().isOpen();
-				}
-			});
-		return projectsList.toArray(new IMavenProjectFacade[] {});
-	}
-
-	public void saveMavenTargetDefinition(Shell shell, IStructuredSelection selection)
-	{
-		List<IProject> elements = Collections.checkedList(selection.toList(), IProject.class);
-
-		if (!elements.isEmpty())
+		try
 		{
-			try
+			ITargetDefinition newTarget = loadMavenTargetDefinition(mavenBundleContainer);
+
+			IFile targetFile = targetProject.getFile("PDE_TARGET.target");
+
+			// Ensure plugins folder is reset
+			IFolder pluginsFolder = targetProject.getFolder("PDE_TARGET_Plugins");
+			if (pluginsFolder.exists())
 			{
-				IProject project = elements.get(0);
+				pluginsFolder.delete(true, null);
+			}
+			pluginsFolder.create(true, true, null);
 
-				ITargetDefinition newTarget = loadMavenTargetDefinition();
+			// Ensure otherPlugins folder exists
+			IFolder otherPluginsFolder = targetProject.getFolder("PDE_TARGET_OtherPlugins");
+			if (!otherPluginsFolder.exists())
+			{
+				otherPluginsFolder.create(true, true, null);
+			}
 
-				IFile targetFile = project.getFile("PDE_TARGET.target");
+			File pluginsFolderFile = pluginsFolder.getLocation().toFile();
 
-				// Ensure plugins folder is reset
-				IFolder pluginsFolder = project.getFolder("PDE_TARGET_Plugins");
-				if (pluginsFolder.exists())
+			// Copy all maven dependencies in pluginsFolder
+
+			// Keep all project artifactIds to ensure they are used instead of any other dependencies
+			final HashSet<String> projectArtifactId = new HashSet<String>();
+			for (IMavenProjectFacade mavenProject : mavenBundleContainer.getMavenProjects())
+			{
+				projectArtifactId.add(mavenProject.getArtifactKey().getArtifactId());
+			}
+
+			Collection<Artifact> mostRecentArtifacts = getMostRecentArtifacts(mavenBundleContainer.getArtifacts(null));
+
+			CollectionUtils.filter(mostRecentArtifacts, new Predicate()
 				{
-					pluginsFolder.delete(true, null);
-				}
-				pluginsFolder.create(true, true, null);
-
-				// Ensure otherPlugins folder exists
-				IFolder otherPluginsFolder = project.getFolder("PDE_TARGET_OtherPlugins");
-				if (!otherPluginsFolder.exists())
-				{
-					otherPluginsFolder.create(true, true, null);
-				}
-
-				File pluginsFolderFile = pluginsFolder.getLocation().toFile();
-
-				// Copy all maven dependencies in pluginsFolder
-				MavenBundleContainer mavenBundleContainer = (MavenBundleContainer) newTarget.getBundleContainers()[0];
-				
-				final HashSet<String> projectArtifactId = new HashSet<String>();
-				for (IMavenProjectFacade mavenProject : mavenBundleContainer.getMavenProjects())
-				{
-					projectArtifactId.add(mavenProject.getArtifactKey().getArtifactId());
-				}
-
-				Collection<Artifact> mostRecentArtifacts = getMostRecentArtifacts(mavenBundleContainer.getArtifacts(null));
-
-				CollectionUtils.filter(mostRecentArtifacts, new Predicate()
+					@Override
+					public boolean evaluate(Object param)
 					{
-						@Override
-						public boolean evaluate(Object param)
-						{
-							Artifact artifact = (Artifact) param;
-							
-							if (projectArtifactId.contains(artifact.getArtifactId()))
-							{
-								System.out.println("MavenPDETarget.saveMavenTargetDefinition REMOVING SNAPSHOT " + artifact.getId());
-								return false;
-							}
+						Artifact artifact = (Artifact) param;
 
-							return true;
-						}
-					});
-
-				for (Artifact artifact : mostRecentArtifacts)
-				{
-					try
-					{
-						File bundleFile = artifact.getFile().getAbsoluteFile();
-						if (bundleFile.isFile())
-						{
-							FileUtils.copyFileToDirectory(bundleFile, pluginsFolderFile);
-						}
+						return !projectArtifactId.contains(artifact.getArtifactId());
 					}
-					catch (IOException e)
+				});
+
+			for (Artifact artifact : mostRecentArtifacts)
+			{
+				try
+				{
+					File bundleFile = artifact.getFile().getAbsoluteFile();
+					if (bundleFile.isFile())
 					{
-						e.printStackTrace();
+						FileUtils.copyFileToDirectory(bundleFile, pluginsFolderFile);
 					}
 				}
-
-				// Update targetFile with the DirectoryBundelContainer if not already present
-				ITargetHandle targetHandle = targetPlatformService.getTarget(targetFile);
-				ITargetDefinition directoryTargetDefinition = targetHandle.getTargetDefinition();
-
-				IBundleContainer mavenDirectoryBundleContainer = null;
-
-				String pluginsFolderPath = pluginsFolderFile.getAbsolutePath();
-				String otherPluginsPath = otherPluginsFolder.getLocation().toFile().getAbsolutePath();
-
-				if (targetFile.exists())
+				catch (IOException e)
 				{
-					// Find already existing DirectoryBundleContainer for maven repository path
-					addBundleContainerToTargetDefinitionIfNotPresent(directoryTargetDefinition, pluginsFolderPath);
-					addBundleContainerToTargetDefinitionIfNotPresent(directoryTargetDefinition, otherPluginsPath);
+					e.printStackTrace();
 				}
-				else
-				{
-					directoryTargetDefinition.setBundleContainers(new IBundleContainer[] { new DirectoryBundleContainer(pluginsFolderPath),
-							new DirectoryBundleContainer(otherPluginsPath) });
-				}
-
-				// Refresh project folder tree
-				project.refreshLocal(IResource.DEPTH_INFINITE, null);
-
-				// Save target definition
-				targetPlatformService.saveTargetDefinition(directoryTargetDefinition);
 			}
-			catch (CoreException e)
+
+			// Update targetFile with the DirectoryBundelContainer if not already present
+			ITargetHandle targetHandle = targetPlatformService.getTarget(targetFile);
+			ITargetDefinition directoryTargetDefinition = targetHandle.getTargetDefinition();
+
+			String pluginsFolderPath = pluginsFolderFile.getAbsolutePath();
+			String otherPluginsPath = otherPluginsFolder.getLocation().toFile().getAbsolutePath();
+
+			if (targetFile.exists())
 			{
-				e.printStackTrace();
+				// Find already existing DirectoryBundleContainer for maven repository path
+				addBundleContainerToTargetDefinitionIfNotPresent(directoryTargetDefinition, pluginsFolderPath);
+				addBundleContainerToTargetDefinitionIfNotPresent(directoryTargetDefinition, otherPluginsPath);
 			}
+			else
+			{
+				directoryTargetDefinition.setBundleContainers(new IBundleContainer[] { new DirectoryBundleContainer(pluginsFolderPath),
+						new DirectoryBundleContainer(otherPluginsPath) });
+			}
+
+			// Refresh project folder tree
+			targetProject.refreshLocal(IResource.DEPTH_INFINITE, null);
+
+			// Save target definition
+			targetPlatformService.saveTargetDefinition(directoryTargetDefinition);
+
+			return newTarget;
 		}
+		catch (Exception e)
+		{
+			e.printStackTrace();
+		}
+
+		return null;
 	}
 
 	private Collection<Artifact> getMostRecentArtifacts(Set<Artifact> artifacts)
