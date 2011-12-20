@@ -150,6 +150,12 @@ public class MavenPDETarget
 
 		for (Artifact artifact : artifacts)
 		{
+			// Ignore test plugins since they are provided by the opened project directly
+			if (artifact.getScope() != null && artifact.getScope().equalsIgnoreCase("test"))
+			{
+				continue;
+			}
+
 			String artifactId = artifact.getArtifactId();
 
 			ArtifactVersion artifactVersion;
