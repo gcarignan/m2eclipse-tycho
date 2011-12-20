@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Set;
 
 import org.apache.maven.artifact.Artifact;
+import org.apache.maven.project.MavenProject;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.m2e.core.embedder.IMaven;
@@ -63,7 +64,8 @@ public class MavenBundleContainer extends AbstractBundleContainer
 		for (int i = 0; i < getMavenProjects().length; i++)
 		{
 			IMavenProjectFacade mavenProjectFacade = getMavenProjects()[i];
-			artifacts.addAll(mavenProjectFacade.getMavenProject(monitor).getArtifacts());
+			MavenProject mavenProject = mavenProjectFacade.getMavenProject(monitor);
+			artifacts.addAll(mavenProject.getArtifacts());
 		}
 		return artifacts;
 	}

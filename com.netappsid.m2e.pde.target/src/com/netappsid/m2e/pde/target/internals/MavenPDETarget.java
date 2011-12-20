@@ -156,6 +156,11 @@ public class MavenPDETarget
 				continue;
 			}
 
+			if (artifact.getScope() != null && artifact.getScope().contains("provide"))
+			{
+				continue;
+			}
+
 			String artifactId = artifact.getArtifactId();
 
 			ArtifactVersion artifactVersion;
