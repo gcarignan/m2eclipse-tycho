@@ -15,6 +15,7 @@ import java.util.jar.Manifest;
 import org.dom4j.Document;
 import org.dom4j.DocumentHelper;
 import org.dom4j.Element;
+import org.dom4j.io.OutputFormat;
 import org.dom4j.io.XMLWriter;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IFolder;
@@ -158,12 +159,11 @@ public class GenerateS3ReleasePlatformAction extends SaveMavenTargetAction
 		XMLWriter writer;
 		try
 		{
-			writer = new XMLWriter(new FileWriter(pluginsFolderFile.getParentFile().getAbsolutePath() + Path.SEPARATOR + "PDE_TARGET_S3Platform.xml"));
+			OutputFormat format = OutputFormat.createPrettyPrint();
+			writer = new XMLWriter(new FileWriter(pluginsFolderFile.getParentFile().getAbsolutePath() + Path.SEPARATOR + "PDE_TARGET_S3Platform.xml"), format);
 			writer.write(document);
 			writer.close();
 
-			// // Pretty print the document to System.out
-			// OutputFormat format = OutputFormat.createPrettyPrint();
 			// writer = new XMLWriter(System.out, format);
 			// writer.write(document);
 		}
