@@ -26,11 +26,17 @@ import org.eclipse.pde.internal.core.target.provisional.IBundleContainer;
 import org.eclipse.pde.internal.core.target.provisional.ITargetDefinition;
 import org.eclipse.pde.internal.core.target.provisional.ITargetHandle;
 import org.eclipse.pde.internal.core.target.provisional.ITargetPlatformService;
+import org.eclipse.swt.SWT;
+import org.eclipse.swt.widgets.MessageBox;
 import org.eclipse.swt.widgets.Shell;
 
 public class MavenPDETarget
 {
 
+	private static final String MAVEN_TARGET = "Maven Target";
+	public static final String PDE_TARGET_TARGET = "PDE_TARGET.target";
+	public static final String PDE_TARGET_OTHER_PLUGINS = "PDE_TARGET_OtherPlugins";
+	public static final String PDE_TARGET_PLUGINS = "PDE_TARGET_Plugins";
 	private final ITargetPlatformService targetPlatformService;
 
 	public MavenPDETarget(ITargetPlatformService targetPlatformService)
@@ -42,7 +48,7 @@ public class MavenPDETarget
 	{
 		ITargetDefinition newTarget = targetPlatformService.newTarget();
 		newTarget.setBundleContainers(new IBundleContainer[] { mavenBundleContainer });
-		newTarget.setName("Maven Target");
+		newTarget.setName(MAVEN_TARGET);
 		return newTarget;
 	}
 
@@ -52,10 +58,10 @@ public class MavenPDETarget
 		{
 			ITargetDefinition newTarget = loadMavenTargetDefinition(mavenBundleContainer);
 
-			IFile targetFile = targetProject.getFile("PDE_TARGET.target");
+			IFile targetFile = targetProject.getFile(PDE_TARGET_TARGET);
 
 			// Ensure plugins folder is reset
-			IFolder pluginsFolder = targetProject.getFolder("PDE_TARGET_Plugins");
+			IFolder pluginsFolder = targetProject.getFolder(PDE_TARGET_PLUGINS);
 			if (pluginsFolder.exists())
 			{
 				pluginsFolder.delete(true, null);
@@ -63,7 +69,7 @@ public class MavenPDETarget
 			pluginsFolder.create(true, true, null);
 
 			// Ensure otherPlugins folder exists
-			IFolder otherPluginsFolder = targetProject.getFolder("PDE_TARGET_OtherPlugins");
+			IFolder otherPluginsFolder = targetProject.getFolder(PDE_TARGET_OTHER_PLUGINS);
 			if (!otherPluginsFolder.exists())
 			{
 				otherPluginsFolder.create(true, true, null);
@@ -138,10 +144,16 @@ public class MavenPDETarget
 		}
 		catch (Exception e)
 		{
-			e.printStackTrace();
-		}
+			MessageBox msgbox = new MessageBox(shell, SWT.ALPHA);
+			
+			msgbox.setMessage("Unable to create PDE Target, delelete file " + PDE_TARGET_TARGET + " in your project");
+			msgbox.setText("Error while creating PDE Target");
+			msgbox.open();
 
-		return null;
+			e.printStackTrace();
+
+			throw new RuntimeException("Unable to create target");
+		}
 	}
 
 	private Collection<Artifact> getMostRecentArtifacts(Set<Artifact> artifacts)
@@ -151,10 +163,10 @@ public class MavenPDETarget
 		for (Artifact artifact : artifacts)
 		{
 			// Ignore test plugins since they are provided by the opened project directly
-			if (artifact.getScope() != null && artifact.getScope().equalsIgnoreCase("test"))
-			{
-				continue;
-			}
+			// if (artifact.getScope() != null && artifact.getScope().equalsIgnoreCase("test"))
+			// {
+			// continue;
+			// }
 
 			if (artifact.getScope() != null && artifact.getScope().contains("provide"))
 			{
