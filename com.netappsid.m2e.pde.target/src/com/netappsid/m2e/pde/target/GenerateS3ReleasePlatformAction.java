@@ -152,7 +152,15 @@ public class GenerateS3ReleasePlatformAction extends SaveMavenTargetAction
 			// <plugin symbolicname="info.clearthought.layout" version="1.0.0" />
 			Element pluginElement = root.addElement("plugin");
 
-			pluginElement.addAttribute("symbolicname", osgiBundleInfo.getSymbolicName());
+			String symbolicName = osgiBundleInfo.getSymbolicName();
+
+			int indexOfSemiColon = symbolicName.indexOf(';');
+			if (indexOfSemiColon != -1)
+			{
+				symbolicName = symbolicName.substring(0, indexOfSemiColon);
+			}
+
+			pluginElement.addAttribute("symbolicname", symbolicName);
 			pluginElement.addAttribute("version", osgiBundleInfo.getVersion());
 		}
 
