@@ -17,6 +17,5 @@ public class SaveMavenTargetAction extends LoadMavenTargetAction
 	{
 		List<IProject> elements = Collections.checkedList(((IStructuredSelection) getSelection()).toList(), IProject.class);
 		ITargetDefinition newTarget = mavenPDETarget.saveMavenTargetDefinition(getShell(), elements.get(0), mavenBundleContainer);
-		loadTarget(newTarget);
 	}
 }

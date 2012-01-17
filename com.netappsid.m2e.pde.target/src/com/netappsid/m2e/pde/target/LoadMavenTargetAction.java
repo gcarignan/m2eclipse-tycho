@@ -63,7 +63,7 @@ public class LoadMavenTargetAction implements IObjectActionDelegate
 	protected void run(MavenPDETarget mavenPDETarget, MavenBundleContainer mavenBundleContainer)
 	{
 		ITargetDefinition newTarget = mavenPDETarget.loadMavenTargetDefinition(mavenBundleContainer);
-		loadTarget(newTarget);
+		LoadTargetDefinitionJob.load(newTarget);
 	}
 
 	protected MavenBundleContainer createMavenBundleContainer(IMavenProjectFacade[] openedProjects)
@@ -87,14 +87,6 @@ public class LoadMavenTargetAction implements IObjectActionDelegate
 				}
 			});
 		return projectsList.toArray(new IMavenProjectFacade[] {});
-	}
-
-	protected void loadTarget(ITargetDefinition newTarget)
-	{
-		if (newTarget != null)
-		{
-			LoadTargetDefinitionJob.load(newTarget);
-		}
 	}
 
 	/**

@@ -20,12 +20,14 @@ import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
+import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.m2e.core.project.IMavenProjectFacade;
 import org.eclipse.pde.internal.core.target.DirectoryBundleContainer;
 import org.eclipse.pde.internal.core.target.provisional.IBundleContainer;
 import org.eclipse.pde.internal.core.target.provisional.ITargetDefinition;
 import org.eclipse.pde.internal.core.target.provisional.ITargetHandle;
 import org.eclipse.pde.internal.core.target.provisional.ITargetPlatformService;
+import org.eclipse.pde.internal.core.target.provisional.LoadTargetDefinitionJob;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.widgets.MessageBox;
 import org.eclipse.swt.widgets.Shell;
@@ -135,11 +137,16 @@ public class MavenPDETarget
 			}
 
 			// Refresh project folder tree
-			targetProject.refreshLocal(IResource.DEPTH_INFINITE, null);
+			NullProgressMonitor monitor = new NullProgressMonitor();
+			targetFile.refreshLocal(IResource.DEPTH_INFINITE, monitor);
+			pluginsFolder.refreshLocal(IResource.DEPTH_INFINITE, monitor);
+			otherPluginsFolder.refreshLocal(IResource.DEPTH_INFINITE, monitor);
+			targetProject.refreshLocal(IResource.DEPTH_INFINITE, monitor);
 
 			// Save target definition
 			targetPlatformService.saveTargetDefinition(directoryTargetDefinition);
 
+			LoadTargetDefinitionJob.load(directoryTargetDefinition);
 			return newTarget;
 		}
 		catch (Exception e)
@@ -162,12 +169,6 @@ public class MavenPDETarget
 
 		for (Artifact artifact : artifacts)
 		{
-			// Ignore test plugins since they are provided by the opened project directly
-			// if (artifact.getScope() != null && artifact.getScope().equalsIgnoreCase("test"))
-			// {
-			// continue;
-			// }
-
 			if (artifact.getScope() != null && artifact.getScope().contains("provide"))
 			{
 				continue;
