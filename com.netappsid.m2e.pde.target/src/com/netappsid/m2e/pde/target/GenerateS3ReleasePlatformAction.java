@@ -2,6 +2,7 @@ package com.netappsid.m2e.pde.target;
 
 import java.io.File;
 import java.io.FileFilter;
+import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -31,6 +32,8 @@ import com.netappsid.m2e.pde.target.internals.MavenPDETarget;
 
 public class GenerateS3ReleasePlatformAction extends SaveMavenTargetAction
 {
+	private static final String PDE_TARGET_S3_PLATFORM_XML = "PDE_TARGET_S3Platform.xml";
+
 	@Override
 	protected void run(MavenPDETarget mavenPDETarget, MavenBundleContainer mavenBundleContainer)
 	{
@@ -77,7 +80,7 @@ public class GenerateS3ReleasePlatformAction extends SaveMavenTargetAction
 		List<OSGIBundleInfo> osgiBundleInfos = new ArrayList<OSGIBundleInfo>();
 
 		// Files
-		for (File pluginFile : pluginsFolderFile.listFiles())
+		for (File pluginFile : pluginsFolderFile.listFiles(jarFilter))
 		{
 			JarFile jarFile;
 			try
@@ -111,7 +114,48 @@ public class GenerateS3ReleasePlatformAction extends SaveMavenTargetAction
 		}
 
 		// Folders
-		// TODO
+		FileFilter jarFolderFilter = new FileFilter()
+			{
+				@Override
+				public boolean accept(File file)
+				{
+					return file.isDirectory();
+				}
+			};
+
+		for (File pluginFolder : pluginsFolderFile.listFiles(jarFolderFilter))
+		{
+			File manifestFile = new File(pluginFolder.getPath() + Path.SEPARATOR + JarFile.MANIFEST_NAME);
+
+			try
+			{
+				if (manifestFile.exists())
+				{
+					Manifest manifest = new Manifest(new FileInputStream(manifestFile));
+
+					String symbolicName = manifest.getMainAttributes().getValue("Bundle-SymbolicName");
+
+					if (symbolicName == null)
+					{
+						// Not an OSGI plugin
+						continue;
+					}
+
+					String version = manifest.getMainAttributes().getValue("Bundle-Version");
+
+					if (symbolicName == null)
+					{
+						throw new RuntimeException("Version is null for plugin " + pluginFolder.getPath());
+					}
+
+					osgiBundleInfos.add(new OSGIBundleInfo(symbolicName, version));
+				}
+			}
+			catch (IOException e)
+			{
+				new RuntimeException("Unable to create Jar Folder manifest from file " + manifestFile.getPath(), e);
+			}
+		}
 
 		// Order OSGIBundleInfor by name
 		Collections.sort(osgiBundleInfos, new Comparator<OSGIBundleInfo>()
@@ -168,9 +212,16 @@ public class GenerateS3ReleasePlatformAction extends SaveMavenTargetAction
 		try
 		{
 			OutputFormat format = OutputFormat.createPrettyPrint();
-			writer = new XMLWriter(new FileWriter(pluginsFolderFile.getParentFile().getAbsolutePath() + Path.SEPARATOR + "PDE_TARGET_S3Platform.xml"), format);
+			writer = new XMLWriter(new FileWriter(pluginsFolderFile.getParentFile().getAbsolutePath() + Path.SEPARATOR + PDE_TARGET_S3_PLATFORM_XML), format);
 			writer.write(document);
 			writer.close();
+
+			try
+			{
+				targetProject.refreshLocal(IResource.DEPTH_INFINITE, new NullProgressMonitor());
+			}
+			catch (CoreException e)
+			{}
 
 			// writer = new XMLWriter(System.out, format);
 			// writer.write(document);
