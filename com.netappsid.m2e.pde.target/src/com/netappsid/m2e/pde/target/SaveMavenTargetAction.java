@@ -1,55 +1,21 @@
 package com.netappsid.m2e.pde.target;
 
-import org.eclipse.jface.action.IAction;
-import org.eclipse.jface.viewers.ISelection;
-import org.eclipse.jface.viewers.IStructuredSelection;
-import org.eclipse.pde.internal.core.target.provisional.ITargetPlatformService;
-import org.eclipse.swt.widgets.Shell;
-import org.eclipse.ui.IActionDelegate;
-import org.eclipse.ui.IObjectActionDelegate;
-import org.eclipse.ui.IWorkbenchPart;
+import java.util.Collections;
+import java.util.List;
 
+import org.eclipse.core.resources.IProject;
+import org.eclipse.jface.viewers.IStructuredSelection;
+import org.eclipse.pde.internal.core.target.provisional.ITargetDefinition;
+
+import com.netappsid.m2e.pde.target.internals.MavenBundleContainer;
 import com.netappsid.m2e.pde.target.internals.MavenPDETarget;
 
-public class SaveMavenTargetAction implements IObjectActionDelegate {
-
-	private Shell shell;
-	private ISelection selection;
-
-	/**
-	 * Constructor for Action1.
-	 */
-	public SaveMavenTargetAction() {
-		super();
-	}
-
-	/**
-	 * @see IObjectActionDelegate#setActivePart(IAction, IWorkbenchPart)
-	 */
+public class SaveMavenTargetAction extends LoadMavenTargetAction
+{
 	@Override
-	public void setActivePart(IAction action, IWorkbenchPart targetPart) {
-		shell = targetPart.getSite().getShell();
-	}
-
-	/**
-	 * @see IActionDelegate#run(IAction)
-	 */
-	@Override
-	public void run(IAction action)
+	protected void run(MavenPDETarget mavenPDETarget, MavenBundleContainer mavenBundleContainer)
 	{
-		MavenPDETarget mavenPDETarget = new MavenPDETarget(
-				MavenPDETargetPlugin.getService(ITargetPlatformService.class));
-		mavenPDETarget.saveMavenTargetDefinition(shell, (IStructuredSelection) selection);
+		List<IProject> elements = Collections.checkedList(((IStructuredSelection) getSelection()).toList(), IProject.class);
+		ITargetDefinition newTarget = mavenPDETarget.saveMavenTargetDefinition(getShell(), elements.get(0), mavenBundleContainer);
 	}
-
-	/**
-	 * @see IActionDelegate#selectionChanged(IAction, ISelection)
-	 */
-	@Override
-	public void selectionChanged(IAction action, ISelection selection) 
-	{
-		this.selection = selection;
-	}
-
 }
-

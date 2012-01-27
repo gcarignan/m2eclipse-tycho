@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Set;
 
 import org.apache.maven.artifact.Artifact;
+import org.apache.maven.project.MavenProject;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.m2e.core.embedder.IMaven;
@@ -60,10 +61,11 @@ public class MavenBundleContainer extends AbstractBundleContainer
 	{
 		Set<Artifact> artifacts = new HashSet<Artifact>();
 
-		for (int i = 0; i < mavenProjects.length; i++)
+		for (int i = 0; i < getMavenProjects().length; i++)
 		{
-			IMavenProjectFacade mavenProjectFacade = mavenProjects[i];
-			artifacts.addAll(mavenProjectFacade.getMavenProject(monitor).getArtifacts());
+			IMavenProjectFacade mavenProjectFacade = getMavenProjects()[i];
+			MavenProject mavenProject = mavenProjectFacade.getMavenProject(monitor);
+			artifacts.addAll(mavenProject.getArtifacts());
 		}
 		return artifacts;
 	}
@@ -90,6 +92,11 @@ public class MavenBundleContainer extends AbstractBundleContainer
 	public boolean isContentEqual(AbstractBundleContainer container)
 	{
 		return false;
+	}
+
+	public IMavenProjectFacade[] getMavenProjects()
+	{
+		return mavenProjects;
 	}
 
 }

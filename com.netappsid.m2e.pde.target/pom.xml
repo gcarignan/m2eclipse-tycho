@@ -19,4 +19,19 @@
   <artifactId>com.netappsid.m2e.pde.target</artifactId>
   <packaging>eclipse-plugin</packaging>
 
+  <dependencies>
+  	<dependency>
+  		<groupId>org.apache.commons</groupId>
+  		<artifactId>
+  			com.springsource.org.apache.commons.collections
+  		</artifactId>
+  		<version>3.2.1</version>
+  	</dependency>
+  	<dependency>
+  		<groupId>org.dom4j</groupId>
+  		<artifactId>com.springsource.org.dom4j</artifactId>
+  		<version>1.6.1</version>
+  	</dependency>
+  </dependencies>
+  <version>1.4.0.qualifier</version>
 </project>
