@@ -216,19 +216,11 @@ public class GenerateS3ReleasePlatformAction extends SaveMavenTargetAction
 			writer.write(document);
 			writer.close();
 
-			try
-			{
-				targetProject.refreshLocal(IResource.DEPTH_INFINITE, new NullProgressMonitor());
-			}
-			catch (CoreException e)
-			{}
-
-			// writer = new XMLWriter(System.out, format);
-			// writer.write(document);
+			targetProject.refreshLocal(IResource.DEPTH_INFINITE, new NullProgressMonitor());
 		}
-		catch (IOException e)
+		catch (Exception e)
 		{
-			new RuntimeException("Unable to write S3 platform to file ");
+			throw new RuntimeException("Unable to write S3 platform to file ");
 		}
 	}
 

@@ -113,7 +113,7 @@ public class MavenPDETarget
 				}
 				catch (IOException e)
 				{
-					e.printStackTrace();
+					throw e;
 				}
 			}
 
@@ -159,7 +159,7 @@ public class MavenPDETarget
 
 			e.printStackTrace();
 
-			throw new RuntimeException("Unable to create target");
+			throw new RuntimeException("Unable to create target", e);
 		}
 	}
 
