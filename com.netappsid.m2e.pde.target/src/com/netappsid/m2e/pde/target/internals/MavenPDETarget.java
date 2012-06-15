@@ -4,7 +4,6 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -14,6 +13,7 @@ import org.apache.commons.collections.Predicate;
 import org.apache.maven.artifact.Artifact;
 import org.apache.maven.artifact.versioning.ArtifactVersion;
 import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
+import org.apache.maven.project.MavenProjectHelper;
 import org.codehaus.plexus.util.FileUtils;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IFolder;
@@ -35,10 +35,17 @@ import org.eclipse.swt.widgets.Shell;
 public class MavenPDETarget
 {
 
+	/**
+	 * @component
+	 */
+	public MavenProjectHelper mavenProjectHelper;
+
 	private static final String MAVEN_TARGET = "Maven Target";
 	public static final String PDE_TARGET_TARGET = "PDE_TARGET.target";
 	public static final String PDE_TARGET_OTHER_PLUGINS = "PDE_TARGET_OtherPlugins";
 	public static final String PDE_TARGET_PLUGINS = "PDE_TARGET_Plugins";
+	public static final String PDE_TARGET_PLUGINS_TEST = "PDE_TARGET_Test_Plugins";
+	public static final String PDE_TARGET_PLUGINS_SOURCES = "PDE_TARGET_Plugins_Sources";
 	private final ITargetPlatformService targetPlatformService;
 
 	public MavenPDETarget(ITargetPlatformService targetPlatformService)
@@ -56,6 +63,11 @@ public class MavenPDETarget
 
 	public ITargetDefinition saveMavenTargetDefinition(Shell shell, IProject targetProject, MavenBundleContainer mavenBundleContainer)
 	{
+		return saveMavenTargetDefinition(shell, targetProject, mavenBundleContainer, false);
+	}
+
+	public ITargetDefinition saveMavenTargetDefinition(Shell shell, IProject targetProject, MavenBundleContainer mavenBundleContainer, boolean withSources)
+	{
 		try
 		{
 			ITargetDefinition newTarget = loadMavenTargetDefinition(mavenBundleContainer);
@@ -63,21 +75,18 @@ public class MavenPDETarget
 			IFile targetFile = targetProject.getFile(PDE_TARGET_TARGET);
 
 			// Ensure plugins folder is reset
-			IFolder pluginsFolder = targetProject.getFolder(PDE_TARGET_PLUGINS);
-			if (pluginsFolder.exists())
-			{
-				pluginsFolder.delete(true, null);
-			}
-			pluginsFolder.create(true, true, null);
+			IFolder pluginsFolder = ensureProjectFolder(targetProject, PDE_TARGET_PLUGINS);
+			IFolder testPluginsFolder = ensureProjectFolder(targetProject, PDE_TARGET_PLUGINS_TEST);
 
 			// Ensure otherPlugins folder exists
-			IFolder otherPluginsFolder = targetProject.getFolder(PDE_TARGET_OTHER_PLUGINS);
+			IFolder otherPluginsFolder = ensureProjectFolder(targetProject, PDE_TARGET_OTHER_PLUGINS);
 			if (!otherPluginsFolder.exists())
 			{
 				otherPluginsFolder.create(true, true, null);
 			}
 
 			File pluginsFolderFile = pluginsFolder.getLocation().toFile();
+			File testPluginsFolderFile = testPluginsFolder.getLocation().toFile();
 
 			// Copy all maven dependencies in pluginsFolder
 
@@ -88,9 +97,11 @@ public class MavenPDETarget
 				projectArtifactId.add(mavenProject.getArtifactKey().getArtifactId());
 			}
 
-			Collection<Artifact> mostRecentArtifacts = getMostRecentArtifacts(mavenBundleContainer.getArtifacts(null));
+			Set<Artifact> artifacts = mavenBundleContainer.getArtifacts(null);
 
-			CollectionUtils.filter(mostRecentArtifacts, new Predicate()
+			ArtifactsData mostRecentArtifactsData = getMostRecentArtifacts(artifacts);
+
+			CollectionUtils.filter(mostRecentArtifactsData.getArtifacts(), new Predicate()
 				{
 					@Override
 					public boolean evaluate(Object param)
@@ -101,21 +112,10 @@ public class MavenPDETarget
 					}
 				});
 
-			for (Artifact artifact : mostRecentArtifacts)
-			{
-				try
-				{
-					File bundleFile = artifact.getFile().getAbsoluteFile();
-					if (bundleFile.isFile())
-					{
-						FileUtils.copyFileToDirectory(bundleFile, pluginsFolderFile);
-					}
-				}
-				catch (IOException e)
-				{
-					throw e;
-				}
-			}
+			File sourcesPluginsFolderFile = (withSources) ? pluginsFolderFile : null;
+			copyArtifactsToFolder(mostRecentArtifactsData.getArtifacts(), pluginsFolderFile, sourcesPluginsFolderFile);
+
+			copyArtifactsToFolder(mostRecentArtifactsData.getTestArtifacts(), testPluginsFolderFile, null);
 
 			// Update targetFile with the DirectoryBundelContainer if not already present
 			ITargetHandle targetHandle = targetPlatformService.getTarget(targetFile);
@@ -123,17 +123,19 @@ public class MavenPDETarget
 
 			String pluginsFolderPath = pluginsFolderFile.getAbsolutePath();
 			String otherPluginsPath = otherPluginsFolder.getLocation().toFile().getAbsolutePath();
+			String testPluginsFolderPath = testPluginsFolderFile.getAbsolutePath();
 
 			if (targetFile.exists())
 			{
 				// Find already existing DirectoryBundleContainer for maven repository path
 				addBundleContainerToTargetDefinitionIfNotPresent(directoryTargetDefinition, pluginsFolderPath);
 				addBundleContainerToTargetDefinitionIfNotPresent(directoryTargetDefinition, otherPluginsPath);
+				addBundleContainerToTargetDefinitionIfNotPresent(directoryTargetDefinition, testPluginsFolderPath);
 			}
 			else
 			{
 				directoryTargetDefinition.setBundleContainers(new IBundleContainer[] { new DirectoryBundleContainer(pluginsFolderPath),
-						new DirectoryBundleContainer(otherPluginsPath) });
+						new DirectoryBundleContainer(otherPluginsPath), new DirectoryBundleContainer(testPluginsFolderPath) });
 			}
 
 			// Refresh project folder tree
@@ -141,6 +143,7 @@ public class MavenPDETarget
 			targetFile.refreshLocal(IResource.DEPTH_INFINITE, monitor);
 			pluginsFolder.refreshLocal(IResource.DEPTH_INFINITE, monitor);
 			otherPluginsFolder.refreshLocal(IResource.DEPTH_INFINITE, monitor);
+			testPluginsFolder.refreshLocal(IResource.DEPTH_INFINITE, monitor);
 			targetProject.refreshLocal(IResource.DEPTH_INFINITE, monitor);
 
 			// Save target definition
@@ -152,7 +155,7 @@ public class MavenPDETarget
 		catch (Exception e)
 		{
 			MessageBox msgbox = new MessageBox(shell, SWT.ALPHA);
-			
+
 			msgbox.setMessage("Unable to create PDE Target, delelete file " + PDE_TARGET_TARGET + " in your project");
 			msgbox.setText("Error while creating PDE Target");
 			msgbox.open();
@@ -163,15 +166,70 @@ public class MavenPDETarget
 		}
 	}
 
-	private Collection<Artifact> getMostRecentArtifacts(Set<Artifact> artifacts)
+	private IFolder ensureProjectFolder(IProject targetProject, String folderName) throws CoreException
 	{
-		Map<String, Artifact> artifactIdToArtifact = new HashMap<String, Artifact>();
+		IFolder folder = targetProject.getFolder(folderName);
+		if (folder.exists())
+		{
+			folder.delete(true, null);
+		}
+		folder.create(true, true, null);
+
+		return folder;
+	}
+
+	private void copyArtifactsToFolder(Collection<Artifact> artifacts, File pluginsFolder, File sourceFolder) throws IOException
+	{
+		for (Artifact artifact : artifacts)
+		{
+			try
+			{
+				File bundleFile = artifact.getFile().getAbsoluteFile();
+				if (bundleFile.isFile())
+				{
+					FileUtils.copyFileToDirectory(bundleFile, pluginsFolder);
+
+					if (sourceFolder != null)
+					{
+						String absolutePath = bundleFile.getAbsolutePath();
+						File sourcesJarFile = new File(absolutePath.replace(".jar", "-sources.jar"));
+
+						if (sourcesJarFile.exists())
+						{
+							FileUtils.copyFileToDirectory(sourcesJarFile, sourceFolder);
+						}
+					}
+				}
+
+			}
+			catch (IOException e)
+			{
+				throw e;
+			}
+		}
+	}
+
+	private ArtifactsData getMostRecentArtifacts(Set<Artifact> artifacts)
+	{
+		ArtifactsData artifactsData = new ArtifactsData();
 
 		for (Artifact artifact : artifacts)
 		{
-			if (artifact.getScope() != null && artifact.getScope().contains("provide"))
+			String scope = artifact.getScope();
+
+			if (scope != null && scope.contains("provide"))
 			{
 				continue;
+			}
+			Map<String, Artifact> artifactIdToArtifact;
+
+			if (scope.contains("test"))
+			{
+				artifactIdToArtifact = artifactsData.getMostRecentArtifactIdToTestArtifacts();
+			}
+			else
+			{
+				artifactIdToArtifact = artifactsData.getMostRecentArtifactIdToArtifacts();
 			}
 
 			String artifactId = artifact.getArtifactId();
@@ -203,7 +261,7 @@ public class MavenPDETarget
 			}
 		}
 
-		return artifactIdToArtifact.values();
+		return artifactsData;
 	}
 
 	private void addBundleContainerToTargetDefinitionIfNotPresent(ITargetDefinition directoryTargetDefinition, String folderPath) throws CoreException

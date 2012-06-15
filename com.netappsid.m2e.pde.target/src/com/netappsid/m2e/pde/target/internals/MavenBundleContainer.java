@@ -65,7 +65,8 @@ public class MavenBundleContainer extends AbstractBundleContainer
 		{
 			IMavenProjectFacade mavenProjectFacade = getMavenProjects()[i];
 			MavenProject mavenProject = mavenProjectFacade.getMavenProject(monitor);
-			artifacts.addAll(mavenProject.getArtifacts());
+			Set<Artifact> artifacts2 = mavenProject.getArtifacts();
+			artifacts.addAll(artifacts2);
 		}
 		return artifacts;
 	}
