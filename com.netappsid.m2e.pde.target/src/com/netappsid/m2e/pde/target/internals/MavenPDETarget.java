@@ -79,7 +79,7 @@ public class MavenPDETarget
 			IFolder testPluginsFolder = ensureProjectFolder(targetProject, PDE_TARGET_PLUGINS_TEST);
 
 			// Ensure otherPlugins folder exists
-			IFolder otherPluginsFolder = ensureProjectFolder(targetProject, PDE_TARGET_OTHER_PLUGINS);
+			IFolder otherPluginsFolder = targetProject.getFolder(PDE_TARGET_OTHER_PLUGINS);
 			if (!otherPluginsFolder.exists())
 			{
 				otherPluginsFolder.create(true, true, null);
